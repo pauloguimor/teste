@@ -1,0 +1,173 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>ATB / SRE MANHUAÇU</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<style>
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: Arial, sans-serif;
+  background: #f4f4f4;
+  overflow: hidden;
+}
+
+header {
+  background: #003366;
+  color: white;
+  padding: 10px;
+  text-align: center;
+}
+
+.busca {
+  padding: 6px;
+  background: #f4f4f4;
+}
+
+.busca input {
+  width: 100%;
+  padding: 8px;
+  font-size: 14px;
+}
+
+.tabela-wrapper {
+  overflow-x: auto;
+  background: #fff;
+}
+
+.tabela-container {
+  overflow-y: auto;
+}
+
+table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+th, td {
+  border: 1px solid #ccc;
+  padding: 4px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+th {
+  background: #eee;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.pix {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border-top: 2px solid #28a745;
+  padding: 8px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.pix-btn {
+  margin-top: 6px;
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  font-size: 14px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  table { font-size: 11px; }
+  th, td { padding: 3px; }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <b>Resultado – ATB / SRE MANHUAÇU</b>
+</header>
+
+<div class="busca">
+  <input type="text" id="busca" placeholder="Digite o nome do candidato">
+</div>
+
+<div class="tabela-wrapper">
+  <div class="tabela-container" id="tabelaContainer">
+    <table id="tabela">
+      <thead>
+        <tr>
+          <th>ORDEM</th>
+          <th>NOME</th>
+          <th>OBJETIVA</th>
+          <th>REDAÇÃO</th>
+          <th>TÍTULOS</th>
+          <th>TOTAL</th>
+          <th>SITUAÇÃO</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="pix">
+  💙 Sua doação mantém o projeto ativo e em constante melhoria.<br>
+  <b>Chave Pix:</b> <span id="pix-chave">pauloguimor@yahoo.com.br</span><br>
+  (qualquer valor faz diferença)<br>
+  <button class="pix-btn" onclick="copiarPix()">COPIAR CHAVE PIX</button>
+</div>
+
+<script>
+function ajustarAltura() {
+  const header = document.querySelector("header").offsetHeight;
+  const busca = document.querySelector(".busca").offsetHeight;
+  const pix = document.querySelector(".pix").offsetHeight;
+  document.getElementById("tabelaContainer").style.height =
+    (window.innerHeight - header - busca - pix) + "px";
+}
+
+window.addEventListener("load", ajustarAltura);
+window.addEventListener("resize", ajustarAltura);
+
+function copiarPix() {
+  navigator.clipboard.writeText(
+    document.getElementById("pix-chave").innerText
+  ).then(() => alert("PIX copiado!"));
+}
+
+fetch("ATB-MANHUACU.json")
+.then(r => r.json())
+.then(dados => {
+  const tbody = document.querySelector("#tabela tbody");
+  dados.forEach(l => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${l.ORDEM}</td><td>${l.NOME}</td><td>${l.OBJETIVA}</td>
+    <td>${l.REDACAO}</td><td>${l.TITULOS}</td><td>${l.TOTAL}</td><td>${l.SITUACAO}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById("busca").addEventListener("keyup", e => {
+    const t = e.target.value.toLowerCase();
+    [...tbody.rows].forEach(r => {
+      r.style.display = r.cells[1].innerText.toLowerCase().includes(t) ? "" : "none";
+    });
+  });
+});
+</script>
+
+</body>
+</html>
