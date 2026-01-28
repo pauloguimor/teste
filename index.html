@@ -16,14 +16,13 @@ header {
   width: 100%;
   background: #0b3c6d;
   color: white;
-  padding: 10px;
+  padding: 6px 10px;
   z-index: 1000;
 }
 
-header select, header input, header button {
-  padding: 6px;
-  margin: 4px;
-  width: 100%;
+header h3 {
+  margin: 4px 0;
+  font-size: 16px;
 }
 
 header .linha {
@@ -32,8 +31,13 @@ header .linha {
   flex-wrap: wrap;
 }
 
+header select, header input, header button {
+  padding: 5px;
+  font-size: 13px;
+}
+
 main {
-  padding: 170px 10px 110px 10px;
+  padding: 110px 10px 90px 10px; /* espaço correto p/ header + footer */
 }
 
 table {
@@ -61,12 +65,12 @@ footer {
   color: white;
   text-align: center;
   padding: 6px;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 footer button {
-  margin-top: 5px;
-  padding: 6px 12px;
+  margin-top: 4px;
+  padding: 5px 10px;
   background: #28a745;
   border: none;
   color: white;
@@ -81,20 +85,30 @@ footer button {
   <h3>Resultados – CNU2</h3>
 
   <div class="linha">
-    <select id="fCodigo"></select>
-    <select id="fCargo"></select>
-    <select id="fEspecialidade"></select>
+    <select id="fCodigo" onchange="atualizarCargos()">
+      <option value="">CÓDIGO</option>
+    </select>
+
+    <select id="fCargo" onchange="atualizarEspecialidades()" disabled>
+      <option value="">CARGO</option>
+    </select>
+
+    <select id="fEspecialidade" disabled>
+      <option value="">ESPECIALIDADE</option>
+    </select>
+
+    <button onclick="verResultado()">Ver resultado</button>
   </div>
 
   <div class="linha">
-    <button onclick="verResultado()">Ver resultado</button>
-    <input id="fNome" placeholder="Pesquisar nome (após carregar)" disabled>
+    <input id="fNome" placeholder="Buscar nome" disabled>
   </div>
 </header>
 
 <main>
   <div id="info"></div>
-  <div style="overflow:auto; max-height:60vh;">
+
+  <div style="overflow:auto; max-height:65vh;">
     <table>
       <thead id="thead"></thead>
       <tbody id="tbody"></tbody>
@@ -103,15 +117,16 @@ footer button {
 </main>
 
 <footer>
-  💙 Sua doação mantém o projeto ativo  
+  💙 Sua doação mantém o projeto ativo e em constante atualização  
   <br>
-  Pix: pauloguimor@yahoo.com.br  
+  Faça um pix. Qualquer valor faz diferença! 
   <br>
   <button onclick="copiarPix()">Copiar Pix</button>
 </footer>
 
 <script>
 let dados = [];
+let filtradosBase = [];
 let filtrados = [];
 
 function normalizar(txt) {
@@ -127,22 +142,52 @@ Papa.parse("dados_concurso.csv", {
   skipEmptyLines: true,
   complete: r => {
     dados = r.data;
-    preencherFiltros();
+    preencherCodigos();
   }
 });
 
-function preencherFiltros() {
-  preencher("fCodigo", "CODIGO");
-  preencher("fCargo", "CARGO");
-  preencher("fEspecialidade", "ESPECIALIDADE");
-}
-
-function preencher(id, campo) {
-  const sel = document.getElementById(id);
-  sel.innerHTML = `<option value="">${campo}</option>`;
-  [...new Set(dados.map(d => d[campo]).filter(Boolean))]
+function preencherCodigos() {
+  const sel = document.getElementById("fCodigo");
+  [...new Set(dados.map(d => d.CODIGO).filter(Boolean))]
     .sort()
     .forEach(v => sel.add(new Option(v, v)));
+}
+
+function atualizarCargos() {
+  const codigo = fCodigo.value;
+  fCargo.innerHTML = '<option value="">CARGO</option>';
+  fEspecialidade.innerHTML = '<option value="">ESPECIALIDADE</option>';
+  fCargo.disabled = true;
+  fEspecialidade.disabled = true;
+
+  if (!codigo) return;
+
+  const subset = dados.filter(d => d.CODIGO === codigo);
+  [...new Set(subset.map(d => d.CARGO).filter(Boolean))]
+    .sort()
+    .forEach(v => fCargo.add(new Option(v, v)));
+
+  fCargo.disabled = false;
+}
+
+function atualizarEspecialidades() {
+  const codigo = fCodigo.value;
+  const cargo = fCargo.value;
+
+  fEspecialidade.innerHTML = '<option value="">ESPECIALIDADE</option>';
+  fEspecialidade.disabled = true;
+
+  if (!codigo || !cargo) return;
+
+  const subset = dados.filter(d =>
+    d.CODIGO === codigo && d.CARGO === cargo
+  );
+
+  [...new Set(subset.map(d => d.ESPECIALIDADE).filter(Boolean))]
+    .sort()
+    .forEach(v => fEspecialidade.add(new Option(v, v)));
+
+  fEspecialidade.disabled = false;
 }
 
 function verResultado() {
@@ -150,19 +195,19 @@ function verResultado() {
   const ca = fCargo.value;
   const e = fEspecialidade.value;
 
-  filtrados = dados.filter(d =>
+  filtradosBase = dados.filter(d =>
     (!c || d.CODIGO === c) &&
     (!ca || d.CARGO === ca) &&
     (!e || d.ESPECIALIDADE === e)
   );
 
-  document.getElementById("fNome").disabled = false;
-  render(filtrados);
+  fNome.disabled = false;
+  render(filtradosBase);
 }
 
-document.getElementById("fNome").addEventListener("input", () => {
+fNome.addEventListener("input", () => {
   const n = normalizar(fNome.value);
-  render(filtrados.filter(d => normalizar(d.NOME).includes(n)));
+  render(filtradosBase.filter(d => normalizar(d.NOME).includes(n)));
 });
 
 function render(lista) {
@@ -183,7 +228,7 @@ function render(lista) {
 }
 
 function copiarPix() {
-  navigator.clipboard.writeText("pauloguimor@yahoo.com.br");
+  navigator.clipboard.writeText("35992424677");
   alert("Pix copiado!");
 }
 </script>
