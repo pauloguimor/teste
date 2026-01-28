@@ -1,141 +1,191 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Consulta Concurso Unificada</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f4f9; padding: 20px; }
-        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        
-        .upload-area { border: 2px dashed #007bff; padding: 30px; text-align: center; margin-bottom: 20px; border-radius: 5px; background: #eef7ff; }
-        .controles { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; display: none; /* Escondido até carregar */ }
-        
-        select, input { padding: 10px; border: 1px solid #ccc; border-radius: 4px; flex: 1; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85em; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #007bff; color: white; position: sticky; top: 0; }
-        tr:nth-child(even) { background-color: #f8f9fa; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resultados – CNU2</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+<style>
+body { margin:0; font-family: Arial, sans-serif; background:#f4f6f8; }
+
+header {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  background: #0b3c6d;
+  color: white;
+  padding: 10px;
+  z-index: 1000;
+}
+
+header select, header input, header button {
+  padding: 6px;
+  margin: 4px;
+  width: 100%;
+}
+
+header .linha {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+main {
+  padding: 170px 10px 110px 10px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+th {
+  position: sticky;
+  top: 0;
+  background: #e9ecef;
+}
+
+td, th {
+  border: 1px solid #ccc;
+  padding: 6px;
+}
+
+footer {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  background: #0b3c6d;
+  color: white;
+  text-align: center;
+  padding: 6px;
+  font-size: 13px;
+}
+
+footer button {
+  margin-top: 5px;
+  padding: 6px 12px;
+  background: #28a745;
+  border: none;
+  color: white;
+  border-radius: 4px;
+}
+</style>
 </head>
+
 <body>
 
-<div class="container">
-    <h2 style="text-align:center">Consulta de Resultados</h2>
+<header>
+  <h3>Resultados – CNU2</h3>
 
-    <div class="upload-area">
-        <h3>Passo 1: Carregue o arquivo de dados</h3>
-        <p>Selecione o arquivo <strong>dados_concurso.csv</strong> que você salvou no Excel.</p>
-        <input type="file" id="csvFile" accept=".csv" onchange="carregarCSV(this)">
-    </div>
+  <div class="linha">
+    <select id="fCodigo"></select>
+    <select id="fCargo"></select>
+    <select id="fEspecialidade"></select>
+  </div>
 
-    <div class="controles" id="areaFiltros">
-        <select id="filtroBloco" onchange="aplicarFiltros()"><option value="">Todos os Blocos</option></select>
-        <select id="filtroCargo" onchange="aplicarFiltros()"><option value="">Todos os Cargos</option></select>
-        <input type="text" id="buscaNome" placeholder="Pesquisar Nome..." onkeyup="aplicarFiltros()">
-        <div id="contador" style="padding: 10px; font-weight: bold;"></div>
-    </div>
+  <div class="linha">
+    <button onclick="verResultado()">Ver resultado</button>
+    <input id="fNome" placeholder="Pesquisar nome (após carregar)" disabled>
+  </div>
+</header>
 
-    <div style="overflow-x:auto; max-height: 600px;">
-        <table id="tabelaDados">
-            <thead></thead>
-            <tbody></tbody>
-        </table>
-    </div>
-</div>
+<main>
+  <div id="info"></div>
+  <div style="overflow:auto; max-height:60vh;">
+    <table>
+      <thead id="thead"></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</main>
+
+<footer>
+  💙 Sua doação mantém o projeto ativo  
+  <br>
+  Pix: pauloguimor@yahoo.com.br  
+  <br>
+  <button onclick="copiarPix()">Copiar Pix</button>
+</footer>
 
 <script>
-    let dadosBrutos = [];
+let dados = [];
+let filtrados = [];
 
-    function carregarCSV(input) {
-        const file = input.files[0];
-        if (!file) return;
+function normalizar(txt) {
+  return txt?.toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
 
-        Papa.parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            encoding: "UTF-8", // Tenta forçar UTF-8
-            complete: function(results) {
-                dadosBrutos = results.data;
-                document.querySelector(".upload-area").style.display = "none";
-                document.getElementById("areaFiltros").style.display = "flex";
-                inicializarFiltros();
-                aplicarFiltros();
-            }
-        });
-    }
+Papa.parse("dados_concurso.csv", {
+  download: true,
+  header: true,
+  skipEmptyLines: true,
+  complete: r => {
+    dados = r.data;
+    preencherFiltros();
+  }
+});
 
-    function inicializarFiltros() {
-        // Tenta achar as colunas corretas mesmo se o nome variar um pouco
-        const chaves = Object.keys(dadosBrutos[0]);
-        const colBloco = chaves.find(k => k.includes("Bloco") || k.includes("Codigo")) || "Codigo_Bloco";
-        const colCargo = chaves.find(k => k.includes("Cargo") || k.includes("Descricao")) || "Cargo_Completo";
+function preencherFiltros() {
+  preencher("fCodigo", "CODIGO");
+  preencher("fCargo", "CARGO");
+  preencher("fEspecialidade", "ESPECIALIDADE");
+}
 
-        // Preenche Blocos
-        const blocos = [...new Set(dadosBrutos.map(d => d[colBloco]).filter(Boolean))].sort();
-        const selBloco = document.getElementById("filtroBloco");
-        blocos.forEach(b => selBloco.add(new Option(b, b)));
+function preencher(id, campo) {
+  const sel = document.getElementById(id);
+  sel.innerHTML = `<option value="">${campo}</option>`;
+  [...new Set(dados.map(d => d[campo]).filter(Boolean))]
+    .sort()
+    .forEach(v => sel.add(new Option(v, v)));
+}
 
-        // Preenche Cargos
-        const cargos = [...new Set(dadosBrutos.map(d => d[colCargo]).filter(Boolean))].sort();
-        const selCargo = document.getElementById("filtroCargo");
-        cargos.forEach(c => selCargo.add(new Option(c, c)));
-    }
+function verResultado() {
+  const c = fCodigo.value;
+  const ca = fCargo.value;
+  const e = fEspecialidade.value;
 
-    function aplicarFiltros() {
-        const bloco = document.getElementById("filtroBloco").value;
-        const cargo = document.getElementById("filtroCargo").value;
-        const nome = document.getElementById("buscaNome").value.toLowerCase();
-        
-        // Identifica colunas novamente para garantir
-        const chaves = Object.keys(dadosBrutos[0]);
-        const colBloco = chaves.find(k => k.includes("Bloco") || k.includes("Codigo"));
-        const colCargo = chaves.find(k => k.includes("Cargo") || k.includes("Descricao"));
-        const colNome = chaves.find(k => k.toLowerCase().includes("nome")) || "Nome";
+  filtrados = dados.filter(d =>
+    (!c || d.CODIGO === c) &&
+    (!ca || d.CARGO === ca) &&
+    (!e || d.ESPECIALIDADE === e)
+  );
 
-        const filtrados = dadosBrutos.filter(d => {
-            return (!bloco || d[colBloco] === bloco) &&
-                   (!cargo || d[colCargo] === cargo) &&
-                   (!nome || (d[colNome] && d[colNome].toLowerCase().includes(nome)));
-        });
+  document.getElementById("fNome").disabled = false;
+  render(filtrados);
+}
 
-        renderizarTabela(filtrados);
-    }
+document.getElementById("fNome").addEventListener("input", () => {
+  const n = normalizar(fNome.value);
+  render(filtrados.filter(d => normalizar(d.NOME).includes(n)));
+});
 
-    function renderizarTabela(dados) {
-        const thead = document.querySelector("#tabelaDados thead");
-        const tbody = document.querySelector("#tabelaDados tbody");
-        
-        document.getElementById("contador").innerText = `Total: ${dados.length}`;
-        tbody.innerHTML = ""; thead.innerHTML = "";
+function render(lista) {
+  if (!lista.length) {
+    tbody.innerHTML = "";
+    info.innerText = "Nenhum resultado encontrado.";
+    return;
+  }
 
-        if (dados.length === 0) {
-            tbody.innerHTML = "<tr><td>Nenhum resultado encontrado.</td></tr>";
-            return;
-        }
+  const cols = Object.keys(lista[0]);
+  thead.innerHTML = "<tr>" + cols.map(c => `<th>${c}</th>`).join("") + "</tr>";
 
-        // Cabeçalho
-        const colunas = Object.keys(dados[0]);
-        let htmlHead = "<tr>";
-        colunas.forEach(c => htmlHead += `<th>${c}</th>`);
-        htmlHead += "</tr>";
-        thead.innerHTML = htmlHead;
+  tbody.innerHTML = lista.map(l =>
+    "<tr>" + cols.map(c => `<td>${l[c] ?? ""}</td>`).join("") + "</tr>"
+  ).join("");
 
-        // Linhas (Limite de 200 para não travar o navegador se tiver muita coisa)
-        const limite = Math.min(dados.length, 200);
-        let htmlBody = "";
-        for(let i=0; i<limite; i++) {
-            htmlBody += "<tr>";
-            colunas.forEach(c => htmlBody += `<td>${dados[i][c] || ""}</td>`);
-            htmlBody += "</tr>";
-        }
-        tbody.innerHTML = htmlBody;
-        
-        if (dados.length > 200) {
-            tbody.innerHTML += `<tr><td colspan="${colunas.length}" style="text-align:center; color:red">...e mais ${dados.length - 200} resultados. Use os filtros.</td></tr>`;
-        }
-    }
+  info.innerText = `${lista.length} registros encontrados.`;
+}
+
+function copiarPix() {
+  navigator.clipboard.writeText("pauloguimor@yahoo.com.br");
+  alert("Pix copiado!");
+}
 </script>
 
 </body>
