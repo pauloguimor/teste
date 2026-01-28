@@ -8,8 +8,13 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
 <style>
-body { margin:0; font-family: Arial, sans-serif; background:#f4f6f8; }
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f4f6f8;
+}
 
+/* ===== HEADER ===== */
 header {
   position: fixed;
   top: 0;
@@ -31,15 +36,35 @@ header .linha {
   flex-wrap: wrap;
 }
 
-header select, header input, header button {
+header select,
+header input,
+header button {
   padding: 5px;
   font-size: 13px;
 }
 
-main {
-  padding: 110px 10px 90px 10px; /* espaço correto p/ header + footer */
+header button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
+/* ===== MAIN ===== */
+main {
+  padding: 110px 10px 90px 10px; /* espaço p/ header + footer */
+}
+
+#info {
+  margin-bottom: 6px;
+  font-weight: bold;
+}
+
+.tabela-container {
+  overflow: auto;
+  max-height: 65vh;
+  background: white;
+}
+
+/* ===== TABELA ===== */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -50,13 +75,16 @@ th {
   position: sticky;
   top: 0;
   background: #e9ecef;
+  z-index: 1;
 }
 
 td, th {
   border: 1px solid #ccc;
   padding: 6px;
+  text-align: left;
 }
 
+/* ===== FOOTER ===== */
 footer {
   position: fixed;
   bottom: 0;
@@ -70,11 +98,19 @@ footer {
 
 footer button {
   margin-top: 4px;
-  padding: 5px 10px;
+  padding: 5px 12px;
   background: #28a745;
   border: none;
   color: white;
   border-radius: 4px;
+  cursor: pointer;
+}
+
+footer a {
+  display: inline-block;
+  margin-top: 4px;
+  color: #a8e6cf;
+  text-decoration: none;
 }
 </style>
 </head>
@@ -93,11 +129,13 @@ footer button {
       <option value="">CARGO</option>
     </select>
 
-    <select id="fEspecialidade" disabled>
+    <select id="fEspecialidade" onchange="verificarFiltros()" disabled>
       <option value="">ESPECIALIDADE</option>
     </select>
 
-    <button onclick="verResultado()">Ver resultado</button>
+    <button id="btnVer" onclick="verResultado()" disabled>
+      Ver resultado
+    </button>
   </div>
 
   <div class="linha">
@@ -108,7 +146,7 @@ footer button {
 <main>
   <div id="info"></div>
 
-  <div style="overflow:auto; max-height:65vh;">
+  <div class="tabela-container">
     <table>
       <thead id="thead"></thead>
       <tbody id="tbody"></tbody>
@@ -117,18 +155,20 @@ footer button {
 </main>
 
 <footer>
-  💙 Sua doação mantém o projeto ativo e em constante atualização  
-  <br>
-  Faça um pix. Qualquer valor faz diferença! 
+  💙 Sua doação mantém o projeto ativo  
   <br>
   <button onclick="copiarPix()">Copiar Pix</button>
+  <br>
+  <a href="https://wa.me/5535992424677" target="_blank">
+    💬 Dúvidas? WhatsApp
+  </a>
 </footer>
 
 <script>
 let dados = [];
 let filtradosBase = [];
-let filtrados = [];
 
+/* === NORMALIZA TEXTO (remove acento e maiúsculas) === */
 function normalizar(txt) {
   return txt?.toString()
     .normalize("NFD")
@@ -136,6 +176,7 @@ function normalizar(txt) {
     .toLowerCase();
 }
 
+/* === CARREGA CSV === */
 Papa.parse("dados_concurso.csv", {
   download: true,
   header: true,
@@ -146,6 +187,7 @@ Papa.parse("dados_concurso.csv", {
   }
 });
 
+/* === FILTROS DINÂMICOS === */
 function preencherCodigos() {
   const sel = document.getElementById("fCodigo");
   [...new Set(dados.map(d => d.CODIGO).filter(Boolean))]
@@ -155,10 +197,12 @@ function preencherCodigos() {
 
 function atualizarCargos() {
   const codigo = fCodigo.value;
+
   fCargo.innerHTML = '<option value="">CARGO</option>';
   fEspecialidade.innerHTML = '<option value="">ESPECIALIDADE</option>';
   fCargo.disabled = true;
   fEspecialidade.disabled = true;
+  verificarFiltros();
 
   if (!codigo) return;
 
@@ -176,6 +220,7 @@ function atualizarEspecialidades() {
 
   fEspecialidade.innerHTML = '<option value="">ESPECIALIDADE</option>';
   fEspecialidade.disabled = true;
+  verificarFiltros();
 
   if (!codigo || !cargo) return;
 
@@ -190,26 +235,38 @@ function atualizarEspecialidades() {
   fEspecialidade.disabled = false;
 }
 
+function verificarFiltros() {
+  btnVer.disabled = !(fCodigo.value && fCargo.value && fEspecialidade.value);
+}
+
+/* === VER RESULTADOS === */
 function verResultado() {
-  const c = fCodigo.value;
-  const ca = fCargo.value;
-  const e = fEspecialidade.value;
+  if (!(fCodigo.value && fCargo.value && fEspecialidade.value)) {
+    alert("Selecione Código, Cargo e Especialidade.");
+    return;
+  }
 
   filtradosBase = dados.filter(d =>
-    (!c || d.CODIGO === c) &&
-    (!ca || d.CARGO === ca) &&
-    (!e || d.ESPECIALIDADE === e)
+    d.CODIGO === fCodigo.value &&
+    d.CARGO === fCargo.value &&
+    d.ESPECIALIDADE === fEspecialidade.value
   );
 
   fNome.disabled = false;
   render(filtradosBase);
 }
 
+/* === BUSCA POR NOME === */
 fNome.addEventListener("input", () => {
-  const n = normalizar(fNome.value);
-  render(filtradosBase.filter(d => normalizar(d.NOME).includes(n)));
+  const termo = normalizar(fNome.value);
+  render(
+    filtradosBase.filter(d =>
+      normalizar(d.NOME).includes(termo)
+    )
+  );
 });
 
+/* === RENDERIZA TABELA === */
 function render(lista) {
   if (!lista.length) {
     tbody.innerHTML = "";
@@ -218,7 +275,8 @@ function render(lista) {
   }
 
   const cols = Object.keys(lista[0]);
-  thead.innerHTML = "<tr>" + cols.map(c => `<th>${c}</th>`).join("") + "</tr>";
+  thead.innerHTML =
+    "<tr>" + cols.map(c => `<th>${c}</th>`).join("") + "</tr>";
 
   tbody.innerHTML = lista.map(l =>
     "<tr>" + cols.map(c => `<td>${l[c] ?? ""}</td>`).join("") + "</tr>"
@@ -227,9 +285,10 @@ function render(lista) {
   info.innerText = `${lista.length} registros encontrados.`;
 }
 
+/* === COPIAR PIX === */
 function copiarPix() {
   navigator.clipboard.writeText("35992424677");
-  alert("Pix copiado!");
+  alert("Chave Pix copiada!");
 }
 </script>
 
