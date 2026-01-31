@@ -99,7 +99,12 @@
         <div id="errorArea" class="error-message" style="display: none;">
             <h5>Erro ao carregar dados</h5>
             <p id="errorText"></p>
-            <button id="retryButton" class="btn btn-primary mt-2">Tentar novamente</button>
+            <div class="mt-3">
+                <button id="retryButton" class="btn btn-primary">Tentar novamente</button>
+                <a href="dados.csv" class="btn btn-success ms-2" download>
+                    📥 Baixar arquivo CSV diretamente
+                </a>
+            </div>
         </div>
 
         <!-- Conteúdo principal (inicialmente escondido) -->
@@ -200,20 +205,12 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Download -->
-            <div class="text-center mt-4">
-                <button id="downloadCsv" class="download-btn">
-                    📥 Baixar Dados Completos (CSV)
-                </button>
-            </div>
         </div>
 
         <!-- Rodapé -->
         <footer class="text-center mt-5 text-muted">
             <p>Dados públicos disponibilizados pelo órgão responsável</p>
             <p>Site desenvolvido para fins de consulta e transparência</p>
-            <p class="small">Última atualização: <span id="lastUpdate"></span></p>
         </footer>
     </div>
 
@@ -224,29 +221,17 @@
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     
     <script>
-        // Configurações
-        const CONFIG = {
-            csvFile: 'dados.csv', // Nome do arquivo CSV
-            csvSeparator: ';', // Separador usado no CSV
-            cacheTime: 5 * 60 * 1000, // 5 minutos em milissegundos
-            showSampleData: false // Se true, mostra dados de exemplo em caso de erro
-        };
-
-        // Variáveis globais
-        let csvData = null;
-        let dataTable = null;
-
         // Função para parsear CSV
         function parseCSV(csv) {
             const lines = csv.split('\n');
-            const headers = lines[0].split(CONFIG.csvSeparator);
+            const headers = lines[0].split(';');
             const result = [];
             
             for (let i = 1; i < lines.length; i++) {
                 if (!lines[i].trim()) continue;
                 
                 const obj = {};
-                const currentline = lines[i].split(CONFIG.csvSeparator);
+                const currentline = lines[i].split(';');
                 
                 for (let j = 0; j < headers.length; j++) {
                     let value = currentline[j] ? currentline[j].trim() : '';
@@ -256,11 +241,6 @@
                         value = value.substring(1);
                     }
                     
-                    // Remove aspas se presentes
-                    if (value.startsWith('"') && value.endsWith('"')) {
-                        value = value.substring(1, value.length - 1);
-                    }
-                    
                     obj[headers[j].replace(/^\uFEFF/, '').trim()] = value;
                 }
                 
@@ -268,49 +248,6 @@
             }
             
             return result;
-        }
-
-        // Função para carregar arquivo CSV
-        async function loadCSV() {
-            try {
-                showLoading(true);
-                hideError();
-                
-                const response = await fetch(CONFIG.csvFile);
-                
-                if (!response.ok) {
-                    throw new Error(`Erro HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const text = await response.text();
-                
-                if (!text || text.trim().length === 0) {
-                    throw new Error('Arquivo CSV está vazio');
-                }
-                
-                csvData = text;
-                
-                // Salva no localStorage com timestamp
-                localStorage.setItem('csvDataCache', text);
-                localStorage.setItem('csvDataTimestamp', Date.now());
-                
-                return text;
-                
-            } catch (error) {
-                console.error('Erro ao carregar CSV:', error);
-                
-                // Tenta carregar do cache
-                const cachedData = localStorage.getItem('csvDataCache');
-                const cacheTime = localStorage.getItem('csvDataTimestamp');
-                
-                if (cachedData && cacheTime && (Date.now() - cacheTime) < CONFIG.cacheTime) {
-                    console.log('Usando dados do cache');
-                    csvData = cachedData;
-                    return cachedData;
-                }
-                
-                throw error;
-            }
         }
 
         // Função para mostrar/ocultar loading
@@ -354,11 +291,6 @@
             document.getElementById('aprovadosGerais').textContent = aprovadosGerais.toLocaleString();
             document.getElementById('aprovadosPcd').textContent = aprovadosPcd.toLocaleString();
             document.getElementById('totalSRE').textContent = sres.toLocaleString();
-            
-            // Atualizar data da última atualização
-            const lastUpdate = document.getElementById('lastUpdate');
-            const now = new Date();
-            lastUpdate.textContent = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR');
         }
 
         // Popular filtros
@@ -401,12 +333,12 @@
         // Inicializar DataTable
         function initializeDataTable(data) {
             // Destruir DataTable anterior se existir
-            if (dataTable && $.fn.DataTable.isDataTable('#resultadosTable')) {
-                dataTable.destroy();
+            if ($.fn.DataTable.isDataTable('#resultadosTable')) {
+                $('#resultadosTable').DataTable().destroy();
                 $('#resultadosTable tbody').empty();
             }
             
-            dataTable = $('#resultadosTable').DataTable({
+            const dataTable = $('#resultadosTable').DataTable({
                 data: data,
                 columns: [
                     { 
@@ -460,16 +392,10 @@
                 },
                 order: [[2, 'desc']], // Ordenar por nota total (decrescente)
                 dom: '<"row"<"col-md-6"l><"col-md-6"f>>tip',
-                responsive: true,
-                initComplete: function() {
-                    // Adicionar eventos de filtro após a inicialização
-                    applyFilters();
-                }
+                responsive: true
             });
-        }
-
-        // Aplicar filtros
-        function applyFilters() {
+            
+            // Aplicar filtros
             $('#filterSRE').on('change', function() {
                 dataTable.column(3).search(this.value).draw();
             });
@@ -494,31 +420,29 @@
                 dataTable.search('').columns().search('').draw();
             });
             
-            // Botão de download CSV
-            $('#downloadCsv').on('click', function() {
-                if (!csvData) {
-                    alert('Dados não disponíveis para download');
-                    return;
-                }
-                
-                const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-                const link = document.createElement('a');
-                const url = URL.createObjectURL(blob);
-                
-                link.setAttribute('href', url);
-                link.setAttribute('download', 'resultados_concurso_completo.csv');
-                link.style.visibility = 'hidden';
-                
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            });
+            return dataTable;
         }
 
         // Função principal de inicialização
         async function initializeApp() {
             try {
-                const csvText = await loadCSV();
+                showLoading(true);
+                hideError();
+                
+                // Carregar o arquivo CSV
+                const response = await fetch('dados.csv');
+                
+                if (!response.ok) {
+                    throw new Error(`Não foi possível carregar o arquivo CSV. Status: ${response.status}`);
+                }
+                
+                const csvText = await response.text();
+                
+                if (!csvText || csvText.trim().length === 0) {
+                    throw new Error('Arquivo CSV está vazio');
+                }
+                
+                // Parsear os dados
                 const data = parseCSV(csvText);
                 
                 // Verificar se há dados
@@ -539,7 +463,7 @@
                 
             } catch (error) {
                 console.error('Erro ao inicializar aplicação:', error);
-                showError(`Não foi possível carregar os dados: ${error.message}`);
+                showError(`Erro: ${error.message}. Verifique se o arquivo "dados.csv" está na mesma pasta.`);
             }
         }
 
