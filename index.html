@@ -1,296 +1,558 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Resultados – CNU2</title>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-
-<style>
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: #f4f6f8;
-}
-
-/* ===== HEADER ===== */
-header {
-  position: fixed;
-  top: 0;
-  width: 100%;
-  background: #0b3c6d;
-  color: white;
-  padding: 6px 10px;
-  z-index: 1000;
-}
-
-header h3 {
-  margin: 4px 0;
-  font-size: 16px;
-}
-
-header .linha {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-header select,
-header input,
-header button {
-  padding: 5px;
-  font-size: 13px;
-}
-
-header button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* ===== MAIN ===== */
-main {
-  padding: 110px 10px 90px 10px; /* espaço p/ header + footer */
-}
-
-#info {
-  margin-bottom: 6px;
-  font-weight: bold;
-}
-
-.tabela-container {
-  overflow: auto;
-  max-height: 65vh;
-  background: white;
-}
-
-/* ===== TABELA ===== */
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-th {
-  position: sticky;
-  top: 0;
-  background: #e9ecef;
-  z-index: 1;
-}
-
-td, th {
-  border: 1px solid #ccc;
-  padding: 6px;
-  text-align: left;
-}
-
-/* ===== FOOTER ===== */
-footer {
-  position: fixed;
-  bottom: 0;
-  width: 100%;
-  background: #0b3c6d;
-  color: white;
-  text-align: center;
-  padding: 6px;
-  font-size: 12px;
-}
-
-footer button {
-  margin-top: 4px;
-  padding: 5px 12px;
-  background: #28a745;
-  border: none;
-  color: white;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-footer a {
-  display: inline-block;
-  margin-top: 4px;
-  color: #a8e6cf;
-  text-decoration: none;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resultados do Concurso Público</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding-top: 20px;
+            padding-bottom: 40px;
+        }
+        .header {
+            background: linear-gradient(135deg, #2c3e50, #4a6491);
+            color: white;
+            padding: 30px 0;
+            margin-bottom: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .stat-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-left: 4px solid #4a6491;
+        }
+        .table-responsive {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .filter-section {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .badge-aprovado {
+            background-color: #28a745;
+        }
+        .badge-pcd {
+            background-color: #17a2b8;
+        }
+        .dataTables_wrapper {
+            margin-top: 20px;
+        }
+        .download-btn {
+            background: #4a6491;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+        .download-btn:hover {
+            background: #2c3e50;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+        .error-message {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
 </head>
-
 <body>
+    <div class="container">
+        <!-- Cabeçalho -->
+        <div class="header text-center">
+            <h1>📊 Resultados do Concurso Público</h1>
+            <p class="lead">Consulta completa dos candidatos aprovados no processo seletivo</p>
+        </div>
 
-<header>
-  <h3>Resultados – CNU2</h3>
+        <!-- Área de carregamento -->
+        <div id="loading" class="loading">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+            <p class="mt-3">Carregando dados do concurso...</p>
+        </div>
 
-  <div class="linha">
-    <select id="fCodigo" onchange="atualizarCargos()">
-      <option value="">CÓDIGO</option>
-    </select>
+        <!-- Área de erro -->
+        <div id="errorArea" class="error-message" style="display: none;">
+            <h5>Erro ao carregar dados</h5>
+            <p id="errorText"></p>
+            <button id="retryButton" class="btn btn-primary mt-2">Tentar novamente</button>
+        </div>
 
-    <select id="fCargo" onchange="atualizarEspecialidades()" disabled>
-      <option value="">CARGO</option>
-    </select>
+        <!-- Conteúdo principal (inicialmente escondido) -->
+        <div id="mainContent" style="display: none;">
+            <!-- Estatísticas -->
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <h5>Total de Aprovados</h5>
+                        <h2 id="totalAprovados" class="text-primary">0</h2>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <h5>Aprovados Gerais</h5>
+                        <h2 id="aprovadosGerais" class="text-success">0</h2>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <h5>Aprovados PcD</h5>
+                        <h2 id="aprovadosPcd" class="text-info">0</h2>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <h5>SREs Diferentes</h5>
+                        <h2 id="totalSRE" class="text-warning">0</h2>
+                    </div>
+                </div>
+            </div>
 
-    <select id="fEspecialidade" onchange="verificarFiltros()" disabled>
-      <option value="">ESPECIALIDADE</option>
-    </select>
+            <!-- Filtros -->
+            <div class="filter-section">
+                <div class="row">
+                    <div class="col-md-4">
+                        <label for="filterSRE" class="form-label">Filtrar por SRE:</label>
+                        <select id="filterSRE" class="form-select">
+                            <option value="">Todas as SREs</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="filterCargo" class="form-label">Filtrar por Cargo:</label>
+                        <select id="filterCargo" class="form-select">
+                            <option value="">Todos os Cargos</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="filterSituacao" class="form-label">Filtrar por Situação:</label>
+                        <select id="filterSituacao" class="form-select">
+                            <option value="">Todas as Situações</option>
+                            <option value="Aprovado">Aprovado</option>
+                            <option value="Aprovado PcD">Aprovado PcD</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-8">
+                        <label for="searchNome" class="form-label">Buscar por Nome:</label>
+                        <input type="text" id="searchNome" class="form-control" placeholder="Digite o nome do candidato...">
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button id="resetFilters" class="btn btn-secondary w-100">Limpar Filtros</button>
+                    </div>
+                </div>
+            </div>
 
-    <button id="btnVer" onclick="verResultado()" disabled>
-      Ver resultado
-    </button>
-  </div>
+            <!-- Tabela de Dados -->
+            <div class="table-responsive">
+                <table id="resultadosTable" class="table table-striped table-hover" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>Classificação</th>
+                            <th>Nome</th>
+                            <th>Nota Total</th>
+                            <th>SRE</th>
+                            <th>Cargo</th>
+                            <th>Nota Objetiva</th>
+                            <th>Redação</th>
+                            <th>Títulos</th>
+                            <th>Situação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Os dados serão preenchidos via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
 
-  <div class="linha">
-    <input id="fNome" placeholder="Buscar nome" disabled>
-  </div>
-</header>
+            <!-- Informações -->
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="alert alert-info">
+                        <h5>📝 Legenda:</h5>
+                        <p><span class="badge badge-aprovado">Aprovado</span> - Candidato aprovado na ampla concorrência</p>
+                        <p><span class="badge badge-pcd">Aprovado PcD</span> - Candidato aprovado pelo sistema de cotas para Pessoas com Deficiência</p>
+                        <p><strong>SRE:</strong> Superintendência Regional de Ensino</p>
+                    </div>
+                </div>
+            </div>
 
-<main>
-  <div id="info"></div>
+            <!-- Download -->
+            <div class="text-center mt-4">
+                <button id="downloadCsv" class="download-btn">
+                    📥 Baixar Dados Completos (CSV)
+                </button>
+            </div>
+        </div>
 
-  <div class="tabela-container">
-    <table>
-      <thead id="thead"></thead>
-      <tbody id="tbody"></tbody>
-    </table>
-  </div>
-</main>
+        <!-- Rodapé -->
+        <footer class="text-center mt-5 text-muted">
+            <p>Dados públicos disponibilizados pelo órgão responsável</p>
+            <p>Site desenvolvido para fins de consulta e transparência</p>
+            <p class="small">Última atualização: <span id="lastUpdate"></span></p>
+        </footer>
+    </div>
 
-<footer>
-  💙 Sua doação mantém o projeto ativo. Qualquer valor faz diferença!  
-  <br>
-  <button onclick="copiarPix()">Copiar Pix</button>
-  <br>
-  <a href="https://wa.me/5535992424677" target="_blank">
-    💬 Dúvidas? WhatsApp
-  </a>
-</footer>
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    
+    <script>
+        // Configurações
+        const CONFIG = {
+            csvFile: 'dados.csv', // Nome do arquivo CSV
+            csvSeparator: ';', // Separador usado no CSV
+            cacheTime: 5 * 60 * 1000, // 5 minutos em milissegundos
+            showSampleData: false // Se true, mostra dados de exemplo em caso de erro
+        };
 
-<script>
-let dados = [];
-let filtradosBase = [];
+        // Variáveis globais
+        let csvData = null;
+        let dataTable = null;
 
-/* === NORMALIZA TEXTO (remove acento e maiúsculas) === */
-function normalizar(txt) {
-  return txt?.toString()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-}
+        // Função para parsear CSV
+        function parseCSV(csv) {
+            const lines = csv.split('\n');
+            const headers = lines[0].split(CONFIG.csvSeparator);
+            const result = [];
+            
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                
+                const obj = {};
+                const currentline = lines[i].split(CONFIG.csvSeparator);
+                
+                for (let j = 0; j < headers.length; j++) {
+                    let value = currentline[j] ? currentline[j].trim() : '';
+                    
+                    // Remove BOM (Byte Order Mark) se presente
+                    if (i === 1 && j === 0 && value.charCodeAt(0) === 65279) {
+                        value = value.substring(1);
+                    }
+                    
+                    // Remove aspas se presentes
+                    if (value.startsWith('"') && value.endsWith('"')) {
+                        value = value.substring(1, value.length - 1);
+                    }
+                    
+                    obj[headers[j].replace(/^\uFEFF/, '').trim()] = value;
+                }
+                
+                result.push(obj);
+            }
+            
+            return result;
+        }
 
-/* === CARREGA CSV === */
-Papa.parse("dados_concurso.csv", {
-  download: true,
-  header: true,
-  skipEmptyLines: true,
-  complete: r => {
-    dados = r.data;
-    preencherCodigos();
-  }
-});
+        // Função para carregar arquivo CSV
+        async function loadCSV() {
+            try {
+                showLoading(true);
+                hideError();
+                
+                const response = await fetch(CONFIG.csvFile);
+                
+                if (!response.ok) {
+                    throw new Error(`Erro HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const text = await response.text();
+                
+                if (!text || text.trim().length === 0) {
+                    throw new Error('Arquivo CSV está vazio');
+                }
+                
+                csvData = text;
+                
+                // Salva no localStorage com timestamp
+                localStorage.setItem('csvDataCache', text);
+                localStorage.setItem('csvDataTimestamp', Date.now());
+                
+                return text;
+                
+            } catch (error) {
+                console.error('Erro ao carregar CSV:', error);
+                
+                // Tenta carregar do cache
+                const cachedData = localStorage.getItem('csvDataCache');
+                const cacheTime = localStorage.getItem('csvDataTimestamp');
+                
+                if (cachedData && cacheTime && (Date.now() - cacheTime) < CONFIG.cacheTime) {
+                    console.log('Usando dados do cache');
+                    csvData = cachedData;
+                    return cachedData;
+                }
+                
+                throw error;
+            }
+        }
 
-/* === FILTROS DINÂMICOS === */
-function preencherCodigos() {
-  const sel = document.getElementById("fCodigo");
-  [...new Set(dados.map(d => d.CODIGO).filter(Boolean))]
-    .sort()
-    .forEach(v => sel.add(new Option(v, v)));
-}
+        // Função para mostrar/ocultar loading
+        function showLoading(show) {
+            const loadingElement = document.getElementById('loading');
+            if (show) {
+                loadingElement.style.display = 'block';
+            } else {
+                loadingElement.style.display = 'none';
+            }
+        }
 
-function atualizarCargos() {
-  const codigo = fCodigo.value;
+        // Função para mostrar erro
+        function showError(message) {
+            const errorArea = document.getElementById('errorArea');
+            const errorText = document.getElementById('errorText');
+            
+            errorText.textContent = message;
+            errorArea.style.display = 'block';
+            showLoading(false);
+        }
 
-  fCargo.innerHTML = '<option value="">CARGO</option>';
-  fEspecialidade.innerHTML = '<option value="">ESPECIALIDADE</option>';
-  fCargo.disabled = true;
-  fEspecialidade.disabled = true;
-  verificarFiltros();
+        // Função para ocultar erro
+        function hideError() {
+            document.getElementById('errorArea').style.display = 'none';
+        }
 
-  if (!codigo) return;
+        // Função para mostrar conteúdo principal
+        function showMainContent() {
+            document.getElementById('mainContent').style.display = 'block';
+        }
 
-  const subset = dados.filter(d => d.CODIGO === codigo);
-  [...new Set(subset.map(d => d.CARGO).filter(Boolean))]
-    .sort()
-    .forEach(v => fCargo.add(new Option(v, v)));
+        // Atualizar estatísticas
+        function updateStatistics(data) {
+            const totalAprovados = data.length;
+            const aprovadosGerais = data.filter(item => item.SITUACAO === 'Aprovado').length;
+            const aprovadosPcd = data.filter(item => item.SITUACAO === 'Aprovado PcD').length;
+            const sres = [...new Set(data.map(item => item.SRE))].length;
+            
+            document.getElementById('totalAprovados').textContent = totalAprovados.toLocaleString();
+            document.getElementById('aprovadosGerais').textContent = aprovadosGerais.toLocaleString();
+            document.getElementById('aprovadosPcd').textContent = aprovadosPcd.toLocaleString();
+            document.getElementById('totalSRE').textContent = sres.toLocaleString();
+            
+            // Atualizar data da última atualização
+            const lastUpdate = document.getElementById('lastUpdate');
+            const now = new Date();
+            lastUpdate.textContent = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR');
+        }
 
-  fCargo.disabled = false;
-}
+        // Popular filtros
+        function populateFilters(data) {
+            const sres = [...new Set(data.map(item => item.SRE))].sort();
+            const cargos = [...new Set(data.map(item => item.CARGO))].sort();
+            
+            const sreSelect = document.getElementById('filterSRE');
+            const cargoSelect = document.getElementById('filterCargo');
+            
+            // Limpar opções existentes (exceto a primeira)
+            while (sreSelect.options.length > 1) {
+                sreSelect.remove(1);
+            }
+            
+            while (cargoSelect.options.length > 1) {
+                cargoSelect.remove(1);
+            }
+            
+            // Adicionar opções
+            sres.forEach(sre => {
+                if (sre) { // Ignorar valores vazios
+                    const option = document.createElement('option');
+                    option.value = sre;
+                    option.textContent = sre;
+                    sreSelect.appendChild(option);
+                }
+            });
+            
+            cargos.forEach(cargo => {
+                if (cargo) { // Ignorar valores vazios
+                    const option = document.createElement('option');
+                    option.value = cargo;
+                    option.textContent = cargo;
+                    cargoSelect.appendChild(option);
+                }
+            });
+        }
 
-function atualizarEspecialidades() {
-  const codigo = fCodigo.value;
-  const cargo = fCargo.value;
+        // Inicializar DataTable
+        function initializeDataTable(data) {
+            // Destruir DataTable anterior se existir
+            if (dataTable && $.fn.DataTable.isDataTable('#resultadosTable')) {
+                dataTable.destroy();
+                $('#resultadosTable tbody').empty();
+            }
+            
+            dataTable = $('#resultadosTable').DataTable({
+                data: data,
+                columns: [
+                    { 
+                        data: 'ORDEM',
+                        className: 'text-center'
+                    },
+                    { data: 'NOME' },
+                    { 
+                        data: 'TOTAL',
+                        render: function(data) {
+                            return parseFloat(data).toFixed(2);
+                        },
+                        className: 'text-center'
+                    },
+                    { data: 'SRE' },
+                    { data: 'CARGO' },
+                    { 
+                        data: 'OBJETIVA',
+                        render: function(data) {
+                            return parseFloat(data).toFixed(2);
+                        },
+                        className: 'text-center'
+                    },
+                    { 
+                        data: 'REDACAO',
+                        render: function(data) {
+                            return parseFloat(data).toFixed(2);
+                        },
+                        className: 'text-center'
+                    },
+                    { 
+                        data: 'TITULOS',
+                        render: function(data) {
+                            return parseFloat(data).toFixed(2);
+                        },
+                        className: 'text-center'
+                    },
+                    { 
+                        data: 'SITUACAO',
+                        render: function(data) {
+                            const badgeClass = data === 'Aprovado PcD' ? 'badge-pcd' : 'badge-aprovado';
+                            return `<span class="badge ${badgeClass}">${data}</span>`;
+                        },
+                        className: 'text-center'
+                    }
+                ],
+                pageLength: 25,
+                lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Todos"]],
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/pt-BR.json'
+                },
+                order: [[2, 'desc']], // Ordenar por nota total (decrescente)
+                dom: '<"row"<"col-md-6"l><"col-md-6"f>>tip',
+                responsive: true,
+                initComplete: function() {
+                    // Adicionar eventos de filtro após a inicialização
+                    applyFilters();
+                }
+            });
+        }
 
-  fEspecialidade.innerHTML = '<option value="">ESPECIALIDADE</option>';
-  fEspecialidade.disabled = true;
-  verificarFiltros();
+        // Aplicar filtros
+        function applyFilters() {
+            $('#filterSRE').on('change', function() {
+                dataTable.column(3).search(this.value).draw();
+            });
+            
+            $('#filterCargo').on('change', function() {
+                dataTable.column(4).search(this.value).draw();
+            });
+            
+            $('#filterSituacao').on('change', function() {
+                dataTable.column(8).search(this.value).draw();
+            });
+            
+            $('#searchNome').on('keyup', function() {
+                dataTable.column(1).search(this.value).draw();
+            });
+            
+            $('#resetFilters').on('click', function() {
+                $('#filterSRE').val('');
+                $('#filterCargo').val('');
+                $('#filterSituacao').val('');
+                $('#searchNome').val('');
+                dataTable.search('').columns().search('').draw();
+            });
+            
+            // Botão de download CSV
+            $('#downloadCsv').on('click', function() {
+                if (!csvData) {
+                    alert('Dados não disponíveis para download');
+                    return;
+                }
+                
+                const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                
+                link.setAttribute('href', url);
+                link.setAttribute('download', 'resultados_concurso_completo.csv');
+                link.style.visibility = 'hidden';
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            });
+        }
 
-  if (!codigo || !cargo) return;
+        // Função principal de inicialização
+        async function initializeApp() {
+            try {
+                const csvText = await loadCSV();
+                const data = parseCSV(csvText);
+                
+                // Verificar se há dados
+                if (data.length === 0) {
+                    throw new Error('Nenhum dado encontrado no arquivo CSV');
+                }
+                
+                // Inicializar interface
+                updateStatistics(data);
+                populateFilters(data);
+                initializeDataTable(data);
+                
+                // Mostrar conteúdo
+                showLoading(false);
+                showMainContent();
+                
+                console.log(`Aplicação carregada com ${data.length} registros`);
+                
+            } catch (error) {
+                console.error('Erro ao inicializar aplicação:', error);
+                showError(`Não foi possível carregar os dados: ${error.message}`);
+            }
+        }
 
-  const subset = dados.filter(d =>
-    d.CODIGO === codigo && d.CARGO === cargo
-  );
-
-  [...new Set(subset.map(d => d.ESPECIALIDADE).filter(Boolean))]
-    .sort()
-    .forEach(v => fEspecialidade.add(new Option(v, v)));
-
-  fEspecialidade.disabled = false;
-}
-
-function verificarFiltros() {
-  btnVer.disabled = !(fCodigo.value && fCargo.value && fEspecialidade.value);
-}
-
-/* === VER RESULTADOS === */
-function verResultado() {
-  if (!(fCodigo.value && fCargo.value && fEspecialidade.value)) {
-    alert("Selecione Código, Cargo e Especialidade.");
-    return;
-  }
-
-  filtradosBase = dados.filter(d =>
-    d.CODIGO === fCodigo.value &&
-    d.CARGO === fCargo.value &&
-    d.ESPECIALIDADE === fEspecialidade.value
-  );
-
-  fNome.disabled = false;
-  render(filtradosBase);
-}
-
-/* === BUSCA POR NOME === */
-fNome.addEventListener("input", () => {
-  const termo = normalizar(fNome.value);
-  render(
-    filtradosBase.filter(d =>
-      normalizar(d.NOME).includes(termo)
-    )
-  );
-});
-
-/* === RENDERIZA TABELA === */
-function render(lista) {
-  if (!lista.length) {
-    tbody.innerHTML = "";
-    info.innerText = "Nenhum resultado encontrado.";
-    return;
-  }
-
-  const cols = Object.keys(lista[0]);
-  thead.innerHTML =
-    "<tr>" + cols.map(c => `<th>${c}</th>`).join("") + "</tr>";
-
-  tbody.innerHTML = lista.map(l =>
-    "<tr>" + cols.map(c => `<td>${l[c] ?? ""}</td>`).join("") + "</tr>"
-  ).join("");
-
-  info.innerText = `${lista.length} registros encontrados.`;
-}
-
-/* === COPIAR PIX === */
-function copiarPix() {
-  navigator.clipboard.writeText("35992424677");
-  alert("Chave Pix copiada!");
-}
-</script>
-
+        // Inicialização quando a página carrega
+        $(document).ready(function() {
+            // Configurar botão de tentar novamente
+            document.getElementById('retryButton').addEventListener('click', function() {
+                initializeApp();
+            });
+            
+            // Inicializar aplicação
+            initializeApp();
+        });
+    </script>
 </body>
 </html>
